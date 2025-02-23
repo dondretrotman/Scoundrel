@@ -1,12 +1,14 @@
 # Play a game of Scoundrel. A roguelike played with a standard 52 card deck
 # Author: Dondre Trotman
-# Date: 2025-02-22
-# Version: 1
+# Date: 2025-02-23
+# Version: 2
 
 # Changelog
-# | version | date       | notes         |
-# |---------|------------|---------------|
-# | 1       | 2025-02-22 | first release |
+# | version | date       | notes                                     |
+# |---------|------------|-------------------------------------------|
+# | 1       | 2025-02-22 | First release                             |
+# | 2       | 2025-02-23 | Implement run and proper rooms.           |
+# |         |            | Probably final unless there are bugs.     |
 
 #import modules
 import random, os, sys, subprocess
@@ -18,10 +20,11 @@ fightresult = 0 #result of a fight
 weapon = 0 #weapon value
 maxweapon = 0 #equal to value of last monster fought with a weapon
 heart = 0 #heart value
-monster = 0 # monster value
 point = 0	#points to randomly selected card in the deck
+roomcnt = 0	#counts the used cards in a room
 cardsleft = 40 #count of cards left
-healcnt = 0	#tracks when last healed
+healed = 0	#tracks when last healed
+ran = 0		#tracks when last ran
 spades = ["2♠","3♠","4♠","5♠","6♠","7♠","8♠","9♠","10♠","J♠","Q♠","K♠","A♠"]
 clubs = ["2♣","3♣","4♣","5♣","6♣","7♣","8♣","9♣","10♣","J♣","Q♣","K♣","A♣"]
 diamonds = ["2♦","3♦","4♦","5♦","6♦","7♦","8♦","9♦","10♦"]
@@ -33,20 +36,13 @@ deck = ["2♠","3♠","4♠","5♠","6♠","7♠","8♠","9♠","10♠","J♠","
 		"2♦","3♦","4♦","5♦","6♦","7♦","8♦","9♦","10♦",
 		"2♥","3♥","4♥","5♥","6♥","7♥","8♥","9♥","10♥"]
 
-#cards that have been selected
-play = ["0","0","0","0","0","0","0","0","0","0","0","0","0",
-		"0","0","0","0","0","0","0","0","0","0","0","0","0",
-		"0","0","0","0","0","0","0","0","0",
-		"0","0","0","0","0","0","0","0","0"]
-
 #create card array
 room = ["X","X","X","X"]
 
 #### FUNCTIONS ####
 #clear screen between plays
 def ClearScreen():
-	#os.system('cls' if os.name=='nt' else 'clear')
-	#print("\033[H\033[3J")		#ANSI codes to clear the screen
+	#print("\033[H\033[3J")		#ANSI codes to clear the screen (looks messy)
 	if os.name in ('linux', 'osx', 'posix'):
 		subprocess.call("clear")
 	elif os.name in ('nt', 'dos'):
@@ -60,22 +56,34 @@ def ClearScreen():
 def Deal(room):
 	global point
 	global cardsleft
-	global healcnt
-	healcnt = healcnt - 1
+	global healed
+	global ran
+	healed = 0		#reset healing ability
+	ran = ran - 1	#cooldown ruun
 	for i in range(len(room)):
-		if room[i] == "X":		#replace only "X" values (indent the rest of the function if uncommenting)
+		if room[i] == "X" and len(deck) > 0:		#replace only "X" values
 			while True:
 				maxindex = len(deck) - 1
 				point = random.randint(0,maxindex)
-				play[point] = deck[point]		#keep track of dealt cards
+				room[i] = deck[point]		#keep track of dealt cards
 				del deck[point]				#remove card from deck
-				room[i] = play[point]
+				#room[i] = play[point]
 				cardsleft = len(deck)
 				break
-	return play[point]
+	return room[i]
 
 # function to run from a room
 def Run():
+	global room
+	global deck
+	global ran
+	if ran <= 0 and "X" not in room:	#can only run if didn't run in previous room or haven't started playing this room
+		for i in range(len(room)):
+			deck.append(room[i])	#put room cards back into deck
+			#break
+		room = ["X","X","X","X"]		#reset room
+		Deal(room)		#deal a new room
+		ran = 2		#set run countdown so that you can't run from consecutive rooms
 	return 
 
 # function to fight
@@ -101,12 +109,14 @@ def Fight(card):
 # function to heal
 def Heal(card):
 	global health
-	if healcnt <= 0:		#only heal if did not heal in last turn
+	global healed
+	if healed <= 0:		#only heal if did not heal in current room
 		life = hearts.index(card) + 2 
 		if life + health > 20: health=20
 		else: health = life + health
 	x = room.index(card)
 	room[x] = "X"		#discard card
+	healed = 1
 	return
 
 #function to equip weapon
@@ -120,10 +130,11 @@ def Equip(card):
 	return weapon
 
 def CheckEnd():
+	global roomcnt
 	if health <= 0:
 		sys.exit("You lose!!!")
 		return 2
-	elif len(deck) <= 0:
+	elif len(deck) <= 0 and roomcnt >= 3:
 		sys.exit("YOU WIN!!! YAY!!!!!")
 		return 1
 	else:
@@ -131,29 +142,35 @@ def CheckEnd():
 
 #get valid input
 def GetInput():
+	global roomcnt
 	while True:
 		user_input = input().strip()
 		if user_input.isdigit():
 			num = int(user_input)
-			if 1 <= num <= 4:
+			if 0 <= num <= 4:
 				return num
 		ClearScreen()
 		print("Weapon = ", weapon, "     Max Weapon = ", maxweapon,"    Health = ", health,"    Cards Left = ", cardsleft)
-		print("Dealing cards...")
+		print("Only choose valid card from 1 - 4, or 0 to run")
 		print(room[0], room[1], room[2], room[3])
-		print("Choose a card\n1 = "+room[0]+"\n2 = "+room[1]+"\n3 = "+room[2]+"\n4 = "+room[3])
+		if roomcnt <= 0: print("Choose a card\n1 = "+room[0]+"\n2 = "+room[1]+"\n3 = "+room[2]+"\n4 = "+room[3]+"\n0 = Run")
+		elif roomcnt > 0: print("Choose a card\n1 = "+room[0]+"\n2 = "+room[1]+"\n3 = "+room[2]+"\n4 = "+room[3]+"\n")
 
 while CheckEnd() == 0:
 	ClearScreen()
 	print("Weapon = ", weapon, "     Max Weapon = ", maxweapon,"    Health = ", health,"    Cards Left = ", cardsleft)
-	print("Dealing cards...")
-	Deal(room)		#deal cards to room
+	roomcnt = room.count("X")
+	if roomcnt >= 3:		#deal new room if there is one card left
+		print("Dealing cards...")
+		Deal(room)		#deal cards to room
+	else: print("")
 	print(room[0], room[1], room[2], room[3])
-	print("Choose a card\n1 = "+room[0]+"\n2 = "+room[1]+"\n3 = "+room[2]+"\n4 = "+room[3])
+	roomcnt = room.count("X")
+	if roomcnt  <= 0: print("Choose a card\n1 = "+room[0]+"\n2 = "+room[1]+"\n3 = "+room[2]+"\n4 = "+room[3]+"\n0 = Run")
+	elif roomcnt > 0 : print("Choose a card\n1 = "+room[0]+"\n2 = "+room[1]+"\n3 = "+room[2]+"\n4 = "+room[3]+"\n")
 	choice = GetInput()
 	card = room[choice-1]
-	if card in diamonds: weapon = Equip(card)
-	elif card in hearts: 
-		Heal(card)
-		healcnt = 2
+	if choice == 0: Run()
+	elif card in diamonds: weapon = Equip(card)
+	elif card in hearts: Heal(card)
 	elif card in spades or card in clubs: Fight(card)
