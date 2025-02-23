@@ -40,7 +40,7 @@ deck = ["2♠","3♠","4♠","5♠","6♠","7♠","8♠","9♠","10♠","J♠","
 room = ["X","X","X","X"]
 
 #### FUNCTIONS ####
-#clear screen between plays
+# clear screen between plays
 def ClearScreen():
 	#print("\033[H\033[3J")		#ANSI codes to clear the screen (looks messy)
 	if os.name in ('linux', 'osx', 'posix'):
@@ -52,7 +52,7 @@ def ClearScreen():
 	return
 
 
-# function to deal cards
+# deal cards function
 def Deal(room):
 	global point
 	global cardsleft
@@ -72,7 +72,7 @@ def Deal(room):
 				break
 	return room[i]
 
-# function to run from a room
+# run from a room
 def Run():
 	global room
 	global deck
@@ -86,7 +86,7 @@ def Run():
 		ran = 2		#set run countdown so that you can't run from consecutive rooms
 	return 
 
-# function to fight
+# fight function
 def Fight(card):
 	global weapon
 	global health
@@ -106,7 +106,7 @@ def Fight(card):
 	room[x] = "X"		#discard card
 	return health
 
-# function to heal
+# heal function
 def Heal(card):
 	global health
 	global healed
@@ -119,7 +119,7 @@ def Heal(card):
 	healed = 1
 	return
 
-#function to equip weapon
+# equip weapon function
 def Equip(card):
 	global weapon
 	global maxweapon
@@ -129,6 +129,7 @@ def Equip(card):
 	room[x] = "X"		#discard card
 	return weapon
 
+# check if the game has ended
 def CheckEnd():
 	global roomcnt
 	if health <= 0:
@@ -140,25 +141,26 @@ def CheckEnd():
 	else:
 		return 0
 
-#get valid input
+# get valid input
 def GetInput():
 	global roomcnt
 	while True:
-		user_input = input().strip()
-		if user_input.isdigit():
-			num = int(user_input)
+		userinput = input().strip()
+		if userinput.isdigit():
+			num = int(userinput)
 			if 0 <= num <= 4:
 				return num
 		ClearScreen()
-		print("Weapon = ", weapon, "     Max Weapon = ", maxweapon,"    Health = ", health,"    Cards Left = ", cardsleft)
+		print("Weapon = ", weapon, "\tMax Weapon = ", maxweapon,"\tHealth = ", health,"\tCards Left = ", cardsleft)
 		print("Only choose valid card from 1 - 4, or 0 to run")
 		print(room[0], room[1], room[2], room[3])
 		if roomcnt <= 0: print("Choose a card\n1 = "+room[0]+"\n2 = "+room[1]+"\n3 = "+room[2]+"\n4 = "+room[3]+"\n0 = Run")
 		elif roomcnt > 0: print("Choose a card\n1 = "+room[0]+"\n2 = "+room[1]+"\n3 = "+room[2]+"\n4 = "+room[3]+"\n")
 
+#### MAIN ####
 while CheckEnd() == 0:
 	ClearScreen()
-	print("Weapon = ", weapon, "     Max Weapon = ", maxweapon,"    Health = ", health,"    Cards Left = ", cardsleft)
+	print("Weapon = ", weapon, "\tMax Weapon = ", maxweapon,"\tHealth = ", health,"\tCards Left = ", cardsleft)
 	roomcnt = room.count("X")
 	if roomcnt >= 3:		#deal new room if there is one card left
 		print("Dealing cards...")
